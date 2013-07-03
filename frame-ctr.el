@@ -25,6 +25,7 @@
 
 (require 'e2wm)
 (require 'frame-cmds)
+(require 'cl)
 
 (defcustom frame-width-single 80
   "The width of the current frame as the default value"
@@ -61,6 +62,7 @@
   :type 'boolean
   :group 'takaxp-frame-control)
   
+;;;###autoload
 (defun toggle-auto-move-frame-to-center ()
   "Change whether move the frame to center automatically"
   (interactive)
@@ -70,6 +72,7 @@
 	(t (setq auto-move-frame-to-center t)
 	   (message "Toggle auto move ON"))))
 
+;;;###autoload
 (defun move-frame-to-horizontal-center ()
   "Move the current frame to the horizontal center of the window display."
   (interactive)
@@ -78,6 +81,7 @@
 			 (/ (- (display-pixel-width) (frame-pixel-width)) 2))
 		      (frame-parameter (selected-frame) 'top)))
 
+;;;###autoload
 (defun move-frame-to-vertical-center ()
   "Move the current frame to the vertical center of the window display."
   (interactive)
@@ -87,6 +91,7 @@
 			 (/ (- (display-pixel-height)
 			       (frame-pixel-height)) 2))))
 
+;;;###autoload
 (defun move-frame-to-edge-top ()
   "Move the current frame to the top of the window display"
   (interactive)
@@ -94,6 +99,7 @@
 		      (frame-parameter (selected-frame) 'left)
 		      0))
 
+;;;###autoload
 (defun move-frame-to-edge-bottom ()
   "Move the current frame to the top of the window display
    If you find the frame is NOT moved to the bottom exactly,
@@ -105,6 +111,7 @@
 		      (- (- (display-pixel-height) (frame-pixel-height))
 			 move-frame-pixel-menubar-offset)))
 
+;;;###autoload
 (defun move-frame-to-center ()
   "Move the current frame to the center of the window display."
   (interactive)
@@ -124,6 +131,7 @@
 	     (frame-parameter (selected-frame) 'left)
 	     (frame-parameter (selected-frame) 'top))))
 
+;;;###autoload
 (defun move-frame-with-user-specify (&optional arg)
   "Move the frame to somewhere (default: 0,0).
    Use prefix to specify the destination position."
@@ -144,6 +152,7 @@
 	     (frame-parameter (selected-frame) 'left)
 	     (frame-parameter (selected-frame) 'top))))
 
+;;;###autoload
 (defun change-frame-width-single (&optional arg)
   "Change the width of the frame to a single width frame"
   (interactive "P")
@@ -160,6 +169,7 @@
     (when auto-move-frame-to-center
       (move-frame-to-center))))
 
+;;;###autoload
 (defun change-frame-width-double (&optional arg)
   "Change the width of the frame to double width frame"
   (interactive "P")
@@ -174,9 +184,28 @@
   (e2wm:start-management)
   (e2wm:dp-two))
 
+;;;###autoload
 (defun reset-frame-height (new-height)
   "Reset the hight of the current frame."
-  (interactive "nNew Height: ")
+  (interactive
+   (list (string-to-number
+	  (read-string "New Height: " (number-to-string (frame-height))))))
+  (let ((min-height 18))
+    (when (< new-height min-height)
+      (message "Force set the height %s." min-height)))
   (set-frame-height (selected-frame) new-height))
+
+(defvar frame-ctr-height-ring nil)
+;;;###autoload
+(defun frame-ctr-make-height-ring (heights)
+  "Cycle change the height of the current frame."
+  (setq frame-ctr-height-ring (copy-sequence heights))
+  (setf (cdr (last frame-ctr-height-ring)) frame-ctr-height-ring))
+
+;;;###autoload
+(defun frame-ctr-open-height-ring ()
+  (interactive)
+  (reset-frame-height (car frame-ctr-height-ring))
+  (setq frame-ctr-height-ring (cdr frame-ctr-height-ring)))
 
 (provide 'frame-ctr)
