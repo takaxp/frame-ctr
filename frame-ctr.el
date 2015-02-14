@@ -1,12 +1,12 @@
-;;; frame-ctr.el --- A tool to control frame size, position, and division
+;;; frame-ctr.el --- A tool to control frame size, position, and font size
 ;;
-;; Copyright (C) 2011 Takaaki ISHIKAWA
+;; Copyright (C) 2015 Takaaki ISHIKAWA
 ;;
 ;; Author: Takaaki ISHIKAWA <takaxp at ieee dot org>
 ;; Maintainer: Takaaki ISHIKAWA <takaxp at ieee dot org>
 ;; Twitter: @takaxp
 ;; Repository: nil
-;; Keywords: e2wm, frame-cmds, frame, size, position
+;; Keywords: frame-cmds, frame, size, position
 ;;
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -23,28 +23,8 @@
 ;; Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 ;; Boston, MA 02110-1301, USA.
 
-(require 'e2wm)
 (require 'frame-cmds)
-
-(defcustom frame-width-single 80
-  "The width of the current frame as the default value"
-  :type 'integer
-  :group 'takaxp-frame-control)
-
-(defcustom frame-width-double 163
-  "The width of the current frame (double size)"
-  :type 'integer
-  :group 'takaxp-frame-control)
-
-(defcustom frame-height-small 35
-  "The height of the current frame as the default value"
-  :type 'integer
-  :group 'takaxp-frame-control)
-
-(defcustom frame-height-tall 60
-  "The height of the current frame (tall version)"
-  :type 'integer
-  :group 'takaxp-frame-control)
+(eval-when-compile (require 'cl))
 
 (defcustom move-frame-pixel-menubar-offset 22
   "Offset of the menubar. The default height is 22 for MacOSX"
@@ -60,7 +40,18 @@
   "Toggle status of moving frame to center"
   :type 'boolean
   :group 'takaxp-frame-control)
-  
+
+(defcustom min-frame-height 16
+  "The minimum height"
+  :type 'integer
+  :group 'takaxp-frame-control)
+
+(defcustom fullscreen-fontsize 28
+  "Font size will be used for fullscreen"
+  :type 'integer
+  :group 'takaxp-frame-control)
+
+;;;###autoload
 (defun toggle-auto-move-frame-to-center ()
   "Change whether move the frame to center automatically"
   (interactive)
@@ -70,6 +61,7 @@
 	(t (setq auto-move-frame-to-center t)
 	   (message "Toggle auto move ON"))))
 
+;;;###autoload
 (defun move-frame-to-horizontal-center ()
   "Move the current frame to the horizontal center of the window display."
   (interactive)
@@ -78,6 +70,7 @@
 			 (/ (- (display-pixel-width) (frame-pixel-width)) 2))
 		      (frame-parameter (selected-frame) 'top)))
 
+;;;###autoload
 (defun move-frame-to-vertical-center ()
   "Move the current frame to the vertical center of the window display."
   (interactive)
@@ -87,6 +80,7 @@
 			 (/ (- (display-pixel-height)
 			       (frame-pixel-height)) 2))))
 
+;;;###autoload
 (defun move-frame-to-edge-top ()
   "Move the current frame to the top of the window display"
   (interactive)
@@ -94,6 +88,7 @@
 		      (frame-parameter (selected-frame) 'left)
 		      0))
 
+;;;###autoload
 (defun move-frame-to-edge-bottom ()
   "Move the current frame to the top of the window display
    If you find the frame is NOT moved to the bottom exactly,
@@ -105,6 +100,7 @@
 		      (- (- (display-pixel-height) (frame-pixel-height))
 			 move-frame-pixel-menubar-offset)))
 
+;;;###autoload
 (defun move-frame-to-center ()
   "Move the current frame to the center of the window display."
   (interactive)
@@ -124,6 +120,7 @@
 	     (frame-parameter (selected-frame) 'left)
 	     (frame-parameter (selected-frame) 'top))))
 
+;;;###autoload
 (defun move-frame-with-user-specify (&optional arg)
   "Move the frame to somewhere (default: 0,0).
    Use prefix to specify the destination position."
@@ -144,39 +141,55 @@
 	     (frame-parameter (selected-frame) 'left)
 	     (frame-parameter (selected-frame) 'top))))
 
-(defun change-frame-width-single (&optional arg)
-  "Change the width of the frame to a single width frame"
-  (interactive "P")
-  (let 
-      ((selected-buffer (current-buffer)))
-    (e2wm:stop-management)
-    (cond (arg
-	   (set-frame-size (selected-frame)
-			   frame-width-single frame-height-tall))
-	  (t
-	   (set-frame-size (selected-frame)
-			   frame-width-single frame-height-small)))
-    (switch-to-buffer selected-buffer)
-    (when auto-move-frame-to-center
-      (move-frame-to-center))))
+;;;###autoload
+(defun max-frame-height ()
+  "Return the maximum height based on screen size."
+  (interactive)
+  (/ (- (x-display-pixel-height) 64) (frame-char-height)))
 
-(defun change-frame-width-double (&optional arg)
-  "Change the width of the frame to double width frame"
-  (interactive "P")
-  (cond (arg
-	 (set-frame-size (selected-frame)
-			 frame-width-double frame-height-tall))
-	(t
-	 (set-frame-size (selected-frame)
-			 frame-width-double frame-height-small)))
-  (when auto-move-frame-to-center
-    (move-frame-to-center))
-  (e2wm:start-management)
-  (e2wm:dp-two))
+;;;###autoload
+(defun min-frame-height ()
+  "Return the minimum height of frame"
+  (interactive)
+  min-frame-height)
 
+;;;###autoload
 (defun reset-frame-height (new-height)
   "Reset the hight of the current frame."
-  (interactive "nNew Height: ")
-  (set-frame-height (selected-frame) new-height))
+  (interactive
+   (list (string-to-number
+	  (read-string "New Height: " (number-to-string (frame-height))))))
+  (let ((min-height (min-frame-height))
+	(max-height (max-frame-height)))
+    (when (> new-height max-height)
+      (setq new-height max-height)
+      (message "Force set the height %s." new-height))
+    (when (< new-height min-height)
+      (setq new-height min-height)
+      (message "Force set the height %s." new-height))
+    (let ((height (floor new-height)))
+      (set-frame-height (selected-frame) height)
+      (message "Height: %s" height))))
+
+;;;###autoload
+(defun fit-frame-to-fullscreen ()
+  "Change font size and expand height to fit full"
+  (interactive)
+  (set-font-size fullscreen-fontsize)
+  (reset-frame-height (max-frame-height)))
+
+(defvar frame-ctr-height-ring nil)
+;;;###autoload
+(defun frame-ctr-make-height-ring (heights)
+  "Cycle change the height of the current frame."
+  (setq frame-ctr-height-ring (copy-sequence heights)))
+  
+;;;###autoload
+(defun frame-ctr-open-height-ring ()
+  (interactive)
+  (reset-frame-height (car frame-ctr-height-ring))
+  (setq frame-ctr-height-ring
+	(append (cdr frame-ctr-height-ring)
+		(list (car frame-ctr-height-ring)))))
 
 (provide 'frame-ctr)
