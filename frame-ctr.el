@@ -46,7 +46,7 @@
   :type 'integer
   :group 'takaxp-frame-control)
 
-(defcustom fullscreen-fontsize 28
+(defcustom fullscreen-fontsize 24
   "Font size will be used for fullscreen"
   :type 'integer
   :group 'takaxp-frame-control)
@@ -168,15 +168,18 @@
       (setq new-height min-height)
       (message "Force set the height %s." new-height))
     (let ((height (floor new-height)))
-      (set-frame-height (selected-frame) height)
-      (message "Height: %s" height))))
+      (set-frame-height (selected-frame) height))))
 
+(defvar frame-ctr-after-fullscreen-hook nil "")
+  
 ;;;###autoload
 (defun fit-frame-to-fullscreen ()
   "Change font size and expand height to fit full"
   (interactive)
-  (set-font-size fullscreen-fontsize)
-  (reset-frame-height (max-frame-height)))
+  (setq target-font-size fullscreen-fontsize)
+  (set-font-size target-font-size)
+  (reset-frame-height (max-frame-height))
+  (run-hooks 'frame-ctr-after-fullscreen-hook))
 
 (defvar frame-ctr-height-ring nil)
 ;;;###autoload

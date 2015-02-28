@@ -48,7 +48,19 @@
   :group 'takaxp-frame-control)
 
 ;;;###autoload
-(defun change-frame-width-single (&optional arg)
+(defun change-frame-width-double ()
+  "Change the frame width to double"
+  (interactive)
+  (set-frame-width (selected-frame) frame-width-double))
+
+;;;###autoload
+(defun change-frame-width-single ()
+  "Change the frame width to double"
+  (interactive)
+  (set-frame-width (selected-frame) frame-width-single))
+
+;;;###autoload
+(defun change-frame-single-window (&optional arg)
   "Change the width of the frame to a single width frame"
   (interactive "P")
   (let 
@@ -65,7 +77,7 @@
       (move-frame-to-center))))
 
 ;;;###autoload
-(defun change-frame-width-double (&optional arg)
+(defun change-frame-double-window (&optional arg)
   "Change the width of the frame to double width frame"
   (interactive "P")
   (cond (arg
