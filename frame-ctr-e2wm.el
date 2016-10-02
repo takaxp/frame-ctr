@@ -51,12 +51,14 @@
 (defun change-frame-width-double ()
   "Change the frame width to double"
   (interactive)
+  (setq target-frame-width frame-width-double)
   (set-frame-width (selected-frame) frame-width-double))
 
 ;;;###autoload
 (defun change-frame-width-single ()
   "Change the frame width to double"
   (interactive)
+  (setq target-frame-width frame-width-single)
   (set-frame-width (selected-frame) frame-width-single))
 
 ;;;###autoload
