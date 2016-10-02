@@ -121,25 +121,32 @@
   (reset-frame-height (max-frame-height)))
 
 ;;;###autoload
-(defun increase-font-size ()
+(defun increase-font-size (&optional inc)
   "Increase font size"
   (interactive)
-  (setq target-font-size (1+ target-font-size))
+  (setq target-font-size
+        (+ target-font-size
+           (if (and (integerp inc) (> inc 0))
+               inc 1)))
   (set-font-size target-font-size)
   (when frame-ctr-verbose
-    (message "+1: %s" target-font-size))
+    (message "+%d: %s" inc target-font-size))
   (make-frame-height-ring)
   (frame-ctr-open-height-ring))
 
 ;;;###autoload
-(defun decrease-font-size ()
+(defun decrease-font-size (&optional dec)
   "Decrease font size"
   (interactive)
-  (when (> target-font-size 2)
-    (setq target-font-size (1- target-font-size)))
+  (setq target-font-size 
+        (- target-font-size
+           (if (and (integerp dec)
+                    (> dec 0)
+                    (> target-font-size (1+ dec)))
+               dec 1)))
   (set-font-size target-font-size)
   (when frame-ctr-verbose
-    (message "-1: %s" target-font-size))
+    (message "-%d: %s" dec target-font-size))
   (make-frame-height-ring)
   (frame-ctr-open-height-ring))
 
