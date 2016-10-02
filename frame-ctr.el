@@ -24,7 +24,7 @@
 ;; Boston, MA 02110-1301, USA.
 
 (require 'frame-cmds)
-(eval-when-compile (require 'cl))
+(eval-when-compile (require 'cl-lib))
 
 (defcustom move-frame-pixel-menubar-offset 22
   "Offset of the menubar. The default height is 22 for MacOSX"
@@ -51,24 +51,148 @@
   :type 'integer
   :group 'takaxp-frame-control)
 
+(defcustom init-line-spacing line-spacing
+  "The default value to set line-spacing"
+  :type 'float
+  :group 'takaxp-frame-control)
+
+(defcustom min-line-spacing 0.1
+  "The minimum value for line spacing"
+  :type 'float
+  :group 'takaxp-frame-control)
+
+(defcustom max-line-spacing 0.8
+  "The maximum value for line spacing"
+  :type 'float
+  :group 'takaxp-frame-control)
+
+(defcustom init-font-size 12
+  "The default value to set font size"
+  :type 'integer
+  :group 'takaxp-frame-control)
+
+(defcustom frame-ctr-verbose nil
+  "Show responses from `frame-ctr`"
+  :type 'boolean
+  :group 'takaxp-frame-control)
+
+(defvar target-font-size init-font-size)
+(defun make-frame-height-ring ()
+  ""
+  (let ((max-height (max-frame-height)))
+    (frame-ctr-make-height-ring
+     ;; 最大，最小，最大の50%，最大の75% を指定
+     (cons max-height
+           (sort (list
+                  (max (min-frame-height) (/ max-height 4))
+                  (/ max-height 2)
+                  (* 3 (/ max-height 4))) '<)))))
+
+(defvar target-frame-width 80)
+(defun set-font-size (arg)
+  (let* ((font-size arg)
+         (frame-width target-frame-width)
+         (ja-font-scale 1.2)
+         (ja-font "Migu 2M")
+         (ascii-font "Monaco"))
+
+    (set-fontset-font nil 'ascii (font-spec :family ascii-font :size font-size))
+    (let ((spec (font-spec :family ja-font :size font-size)))
+      (set-fontset-font nil 'japanese-jisx0208 spec)
+      (set-fontset-font nil 'katakana-jisx0201 spec)
+      (set-fontset-font nil 'japanese-jisx0212 spec)
+      (set-fontset-font nil '(#x0080 . #x024F) spec)
+      (set-fontset-font nil '(#x0370 . #x03FF) spec)
+      (set-fontset-font nil 'mule-unicode-0100-24ff spec))
+    
+    (setq face-font-rescale-alist
+          `((".*Migu.*" . ,ja-font-scale)))
+    (set-frame-width (selected-frame) frame-width)
+    (reset-frame-height (frame-height))))
+
+;;;###autoload
+(defun set-font-size-input (n)
+  (interactive "nSize: ")
+  (setq target-font-size n)
+  (set-font-size target-font-size)
+  (when frame-ctr-verbose
+    (message "0: %s" target-font-size))
+  (make-frame-height-ring)
+  (reset-frame-height (max-frame-height)))
+
+;;;###autoload
+(defun increase-font-size ()
+  "Increase font size"
+  (interactive)
+  (setq target-font-size (1+ target-font-size))
+  (set-font-size target-font-size)
+  (when frame-ctr-verbose
+    (message "+1: %s" target-font-size))
+  (make-frame-height-ring)
+  (frame-ctr-open-height-ring))
+
+;;;###autoload
+(defun decrease-font-size ()
+  "Decrease font size"
+  (interactive)
+  (when (> target-font-size 2)
+    (setq target-font-size (1- target-font-size)))
+  (set-font-size target-font-size)
+  (when frame-ctr-verbose
+    (message "-1: %s" target-font-size))
+  (make-frame-height-ring)
+  (frame-ctr-open-height-ring))
+
+;;;###autoload
+(defun reset-font-size ()
+  "Reset font size"
+  (interactive)
+  (set-font-size init-font-size)
+  (setq target-font-size init-font-size)
+  (when frame-ctr-verbose
+    (message "0: %s" target-font-size))
+  (make-frame-height-ring)
+  (frame-ctr-open-height-ring))
+
+;;;###autoload
+(defun cycle-line-spacing ()
+  "Change line-spacing value between a range"
+  (interactive)
+  (if (< line-spacing max-line-spacing)
+      (setq line-spacing (+ line-spacing 0.1))
+    (setq line-spacing min-line-spacing))
+  (when frame-ctr-verbose
+    (message "%.1f" line-spacing)))
+
+;;;###autoload
+(defun reset-line-spacing ()
+  "Reset the defaut value for line spacing"
+  (interactive)
+  (setq line-spacing init-line-spacing)
+  (when frame-ctr-verbose
+    (message "%.1f" line-spacing)))
+
 ;;;###autoload
 (defun toggle-auto-move-frame-to-center ()
   "Change whether move the frame to center automatically"
   (interactive)
   (cond (auto-move-frame-to-center
-	 (setq auto-move-frame-to-center nil)
-	 (message "Toggle auto move OFF"))
-	(t (setq auto-move-frame-to-center t)
-	   (message "Toggle auto move ON"))))
+         (setq auto-move-frame-to-center nil)
+         (when frame-ctr-verbose
+           (message "Toggle auto move OFF")))
+        (t
+         (setq auto-move-frame-to-center t)
+         (when frame-ctr-verbose
+           (message "Toggle auto move ON")))))
 
 ;;;###autoload
 (defun move-frame-to-horizontal-center ()
   "Move the current frame to the horizontal center of the window display."
   (interactive)
   (set-frame-position (selected-frame)
-		      (+ (car move-frame-pixel-offset)
-			 (/ (- (display-pixel-width) (frame-pixel-width)) 2))
-		      (frame-parameter (selected-frame) 'top)))
+                      (+ (car move-frame-pixel-offset)
+                         (/ (- (display-pixel-width) (frame-pixel-width)) 2))
+                      (frame-parameter (selected-frame) 'top)))
 
 ;;;###autoload
 (defun move-frame-to-vertical-center ()
@@ -108,44 +232,46 @@
       ((prev-pos-x (frame-parameter (selected-frame) 'left))
        (prev-pos-y (frame-parameter (selected-frame) 'top))
        (center-pos-x
-	(+ (car move-frame-pixel-offset)
-	   (/ (- (display-pixel-width) (frame-pixel-width)) 2)))
+        (+ (car move-frame-pixel-offset)
+           (/ (- (display-pixel-width) (frame-pixel-width)) 2)))
        (center-pos-y
-	(+ (cdr move-frame-pixel-offset)
-	   (/ (- (display-pixel-height) (frame-pixel-height)) 2))))
+        (+ (cdr move-frame-pixel-offset)
+           (/ (- (display-pixel-height) (frame-pixel-height)) 2))))
     (set-frame-position (selected-frame) center-pos-x center-pos-y)
-    (message "Frame move: from (%s, %s) to (%s, %s)"
-	     prev-pos-x
-	     prev-pos-y
-	     (frame-parameter (selected-frame) 'left)
-	     (frame-parameter (selected-frame) 'top))))
-
+    (when frame-ctr-verbose
+      (message "Frame move: from (%s, %s) to (%s, %s)"
+               prev-pos-x
+               prev-pos-y
+               (frame-parameter (selected-frame) 'left)
+               (frame-parameter (selected-frame) 'top)))))
+  
 ;;;###autoload
 (defun move-frame-with-user-specify (&optional arg)
   "Move the frame to somewhere (default: 0,0).
    Use prefix to specify the destination position."
   (interactive "P")
   (let ((pos-x 0)
-	(pos-y move-frame-pixel-menubar-offset))
+        (pos-y move-frame-pixel-menubar-offset))
     (when arg
       (setq pos-x (string-to-number
-		   (read-from-minibuffer
-		    (format "X: from %s to "
-			    (frame-parameter (selected-frame) 'left)))))
+                   (read-from-minibuffer
+                    (format "X: from %s to "
+                            (frame-parameter (selected-frame) 'left)))))
       (setq pos-y (string-to-number
-		   (read-from-minibuffer
-		    (format "Y: from %s to "
-			    (frame-parameter (selected-frame) 'top))))))
+                   (read-from-minibuffer
+                    (format "Y: from %s to "
+                            (frame-parameter (selected-frame) 'top))))))
     (set-frame-position (selected-frame) pos-x pos-y)
-    (message "Frame move: (%s, %s)"
-	     (frame-parameter (selected-frame) 'left)
-	     (frame-parameter (selected-frame) 'top))))
+    (when frame-ctr-verbose
+      (message "Frame move: (%s, %s)"
+               (frame-parameter (selected-frame) 'left)
+               (frame-parameter (selected-frame) 'top)))))
 
 ;;;###autoload
 (defun max-frame-height ()
   "Return the maximum height based on screen size."
   (interactive)
-  (/ (- (x-display-pixel-height) 64) (frame-char-height)))
+  (/ (- (display-pixel-height) 64) (frame-char-height)))
 
 ;;;###autoload
 (defun min-frame-height ()
@@ -158,15 +284,17 @@
   "Reset the hight of the current frame."
   (interactive
    (list (string-to-number
-	  (read-string "New Height: " (number-to-string (frame-height))))))
+          (read-string "New Height: " (number-to-string (frame-height))))))
   (let ((min-height (min-frame-height))
-	(max-height (max-frame-height)))
+        (max-height (max-frame-height)))
     (when (> new-height max-height)
       (setq new-height max-height)
-      (message "Force set the height %s." new-height))
+      (when frame-ctr-verbose
+        (message "Force set the height %s." new-height)))
     (when (< new-height min-height)
       (setq new-height min-height)
-      (message "Force set the height %s." new-height))
+      (when frame-ctr-verbose
+        (message "Force set the height %s." new-height)))
     (let ((height (floor new-height)))
       (set-frame-height (selected-frame) height))))
 
@@ -182,17 +310,28 @@
   (run-hooks 'frame-ctr-after-fullscreen-hook))
 
 (defvar frame-ctr-height-ring nil)
-;;;###autoload
 (defun frame-ctr-make-height-ring (heights)
   "Cycle change the height of the current frame."
   (setq frame-ctr-height-ring (copy-sequence heights)))
   
 ;;;###autoload
 (defun frame-ctr-open-height-ring ()
+  ""
   (interactive)
   (reset-frame-height (car frame-ctr-height-ring))
   (setq frame-ctr-height-ring
-	(append (cdr frame-ctr-height-ring)
-		(list (car frame-ctr-height-ring)))))
+        (append (cdr frame-ctr-height-ring)
+                (list (car frame-ctr-height-ring)))))
+
+;;;###autoload
+(defun frame-ctr-print-status ()
+  "Print font size, frame origin, and frame size in mini buffer."
+  (interactive)
+  (message "Font: %spt | Origin: (%s, %s) | Frame: (%d, %d)" 
+           target-font-size
+           (frame-parameter (selected-frame) 'left)
+           (frame-parameter (selected-frame) 'top)
+           (frame-width)
+           (frame-height)))
 
 (provide 'frame-ctr)
